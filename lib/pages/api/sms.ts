@@ -1,10 +1,8 @@
-// lib/pages/api/sms.ts  (or pages/api/sms.ts – replace ALL)
-
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { createClient } from '@supabase/supabase-js'
 import twilio from 'twilio'
 
-// Runtime-only Supabase
+// Runtime Supabase (no global import!)
 const getSupabase = () => {
   const url = process.env.SUPABASE_URL
   const key = process.env.SUPABASE_ANON_KEY
@@ -12,18 +10,15 @@ const getSupabase = () => {
   return createClient(url, key)
 }
 
-// Twilio
 const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN)
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).send('<Response/>')
-
   const { Body, From } = req.body
   if (!Body || !From) return res.status(400).send('<Response/>')
 
   try {
     const supabase = getSupabase()
-
     const { data: family } = await supabase
       .from('families')
       .select('*')
@@ -33,7 +28,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!family) return res.status(200).send('<Response/>')
 
     const cleanQuote = Body.trim()
-
     await supabase.from('entries').insert({
       family_id: family.id,
       quote: cleanQuote,
