@@ -1,32 +1,69 @@
+// pages/dashboard.tsx
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { createSupabaseClient } from '@/lib/supabase'
 import { format, isAfter, subDays } from 'date-fns'
 
 export default function Dashboard() {
   const [entries, setEntries] = useState<any[]>([])
   const [family, setFamily] = useState<any>(null)
+  const [supabase, setSupabase] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
+  // Create client only in browser
   useEffect(() => {
-    const fetchData = async () => {
-      const { data: familyData } = await supabase.from('families').select('*').limit(1).single()
-      setFamily(familyData)
-
-      const { data } = await supabase
-        .from('entries')
-        .select('*')
-        .eq('family_id', familyData?.id)
-        .order('date', { ascending: false })
-
-      setEntries(data || [])
-
-      const thirtyDaysAgo = subDays(new Date(), 30)
-      const count = data?.filter(e => isAfter(new Date(e.date), thirtyDaysAgo)).length || 0
-      document.getElementById('tracker')!.innerText = `You’ve saved ${count} moments this month ✨`
-    }
-    fetchData()
+    setSupabase(createSupabaseClient())
   }, [])
 
-  if (!family) return <div className="min-h-screen bg-sayso-cream p-6">Loading...</div>
+  // Fetch data once client ready
+  useEffect(() => {
+    if (!supabase) return
+
+    const fetchData = async () => {
+      setLoading(true)
+      const { data: familyData, error: famErr } = await supabase
+        .from('families')
+        .select('*')
+        .limit(1)
+        .single()
+
+      if (famErr || !familyData) {
+        console.error('Family fetch error:', famErr)
+        setLoading(false)
+        return
+      }
+
+      setFamily(familyData)
+
+      const { data, error } = await supabase
+        .from('entries')
+        .select('*')
+        .eq('family_id', familyData.id)
+        .order('date', { ascending: false })
+
+      if (error) console.error('Entries error:', error)
+
+      const entriesData = data || []
+      setEntries(entriesData)
+
+      const thirtyDaysAgo = subDays(new Date(), 30)
+      const count = entriesData.filter((e: any) =>
+        isAfter(new Date(e.date), thirtyDaysAgo)
+      ).length
+
+      document.getElementById('tracker')!.innerText = `You’ve saved ${count} moments this month ✨`
+      setLoading(false)
+    }
+
+    fetchData()
+  }, [supabase])
+
+  if (loading) {
+    return <div className="min-h-screen bg-sayso-cream p-6">Loading...</div>
+  }
+
+  if (!family) {
+    return <div className="min-h-screen bg-sayso-cream p-6">No family found.</div>
+  }
 
   return (
     <div className="min-h-screen bg-sayso-cream p-6">
