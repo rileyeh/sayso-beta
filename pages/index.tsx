@@ -11,7 +11,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-sayso-cream flex items-center justify-center">
-      <div className="text-3xl text-sayso-red animate-pulse">✨</div>
+      <div className="text-3xl text-sayso-red animate-pulse">✨ Redirecting...</div>
     </div>
   )
 }
