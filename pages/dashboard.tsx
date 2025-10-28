@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { format, isAfter, subDays } from 'date-fns'
 
 export default function Dashboard() {
