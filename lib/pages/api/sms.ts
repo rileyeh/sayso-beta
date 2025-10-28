@@ -5,7 +5,7 @@ import twilio from 'twilio'
 const getSupabase = () => {
   const url = process.env.SUPABASE_URL
   const key = process.env.SUPABASE_ANON_KEY
-  if (!url || !key) throw new Error('Missing Supabase vars')
+  if (!url || !key) throw new Error('Missing Supabase env vars')
   return createClient(url, key)
 }
 
@@ -13,11 +13,13 @@ const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN)
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).send('<Response/>')
+
   const { Body, From } = req.body
   if (!Body || !From) return res.status(400).send('<Response/>')
 
   try {
     const supabase = getSupabase()
+
     const { data: family } = await supabase
       .from('families')
       .select('*')
@@ -27,6 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!family) return res.status(200).send('<Response/>')
 
     const cleanQuote = Body.trim()
+
     await supabase.from('entries').insert({
       family_id: family.id,
       quote: cleanQuote,
@@ -41,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     res.status(200).send('<Response/>')
   } catch (err) {
-    console.error('SMS error:', err)
+    console.error('SMS handler error:', err)
     res.status(200).send('<Response/>')
   }
 }
