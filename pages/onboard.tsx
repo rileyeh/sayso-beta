@@ -1,104 +1,83 @@
-import { useState } from 'react'
-import { createSupabaseClient } from '@/lib/supabase'
-import { useRouter } from 'next/router'
+import { useState } from "react";
+import { supabaseBrowser } from "../lib/supabase-browser";
+
+type Kid = { name: string; birthday?: string; notes?: string };
 
 export default function Onboard() {
-  const [step, setStep] = useState(1)
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [kidName, setKidName] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
-  const router = useRouter()
+  const supabase = supabaseBrowser();
+  const [kids, setKids] = useState<Kid[]>([{ name: "", birthday: "", notes: "" }]);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const supabase = createSupabaseClient()
+  const addRow = () => setKids(k => [...k, { name: "", birthday: "", notes: "" }]);
+  const update = (i: number, field: keyof Kid, val: string) =>
+    setKids(k => k.map((row, idx) => (idx === i ? { ...row, [field]: val } : row)));
+  const remove = (i: number) => setKids(k => k.filter((_, idx) => idx !== i));
 
-  const handleEmail = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    const { data } = await supabase.from('families').select('id').eq('email', email).maybeSingle()
-    if (data) {
-      router.push('/dashboard')
-    } else {
-      setStep(2)
+  const submit = async () => {
+    setSaving(true); setError(null);
+    try {
+      const { data: { user }, error: uerr } = await supabase.auth.getUser();
+      if (uerr || !user) throw new Error("Please sign in again.");
+
+      const payload = kids
+        .map(k => ({ name: k.name.trim(), birthday: k.birthday || null, notes: k.notes?.trim() || null }))
+        .filter(k => k.name.length > 0);
+
+      if (payload.length === 0) throw new Error("Add at least one child name.");
+
+      const { error: derr } = await supabase
+        .from("children")
+        .insert(payload.map(k => ({ ...k, user_id: user.id })));
+
+      if (derr) throw derr;
+
+      window.location.href = "/app";
+    } catch (e: any) {
+      setError(e.message ?? "Something went wrong. Please try again.");
+    } finally {
+      setSaving(false);
     }
-    setLoading(false)
-  }
-
-  const handleDetails = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    const { error } = await supabase.from('families').insert({ email, phone, kid_name: kidName })
-    if (error) {
-      setMessage('Oops! Try again.')
-    } else {
-      setStep(3)
-      setTimeout(() => router.push('/dashboard'), 2000)
-    }
-    setLoading(false)
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-sayso-cream flex items-center justify-center p-6">
-      <div className="bg-white/90 backdrop-blur p-10 rounded-3xl shadow-xl max-w-md w-full text-center">
-        <h1 className="text-5xl font-playfair mb-6">
-          <span className="font-bold text-sayso-red">say</span>
-          <span className="font-light text-sayso-red">so</span>
-        </h1>
+    <main style={{ maxWidth: 720, margin: "40px auto", padding: 16 }}>
+      <h1>sayso</h1>
+      <p>Almost there! Add your kid(s). You can edit these later.</p>
 
-        {step === 1 && (
-          <form onSubmit={handleEmail} className="space-y-6">
-            <p className="text-lg text-sayso-brown">Let’s save your kid’s voice! ✨</p>
-            <input
-              type="email"
-              placeholder="your@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-4 text-lg bg-sayso-cream/50 rounded-xl"
-              required
-            />
-            <button type="submit" disabled={loading} className="w-full text-lg">
-              {loading ? 'Checking...' : 'Next →'}
-            </button>
-          </form>
-        )}
+      {kids.map((k, i) => (
+        <div key={i} style={{ display:"grid", gridTemplateColumns:"2fr 1fr 2fr auto", gap: 8, marginBottom: 8 }}>
+          <input
+            placeholder="Kid's name (required)"
+            value={k.name}
+            onChange={e => update(i, "name", e.target.value)}
+            required
+          />
+          <input
+            type="date"
+            value={k.birthday || ""}
+            onChange={e => update(i, "birthday", e.target.value)}
+          />
+          <input
+            placeholder="Notes (optional)"
+            value={k.notes || ""}
+            onChange={e => update(i, "notes", e.target.value)}
+          />
+          <button type="button" onClick={() => remove(i)} aria-label="Remove">✕</button>
+        </div>
+      ))}
 
-        {step === 2 && (
-          <form onSubmit={handleDetails} className="space-y-6">
-            <p className="text-lg text-sayso-brown">Almost there! Tell us about your little one.</p>
-            <input
-              type="tel"
-              placeholder="Phone (e.g., +15551234567)"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full p-4 text-lg bg-sayso-cream/50 rounded-xl"
-              required
-            />
-            <input
-              type="text"
-              placeholder="Kid’s name"
-              value={kidName}
-              onChange={(e) => setKidName(e.target.value)}
-              className="w-full p-4 text-lg bg-sayso-cream/50 rounded-xl"
-              required
-            />
-            <button type="submit" disabled={loading} className="w-full text-lg">
-              {loading ? 'Saving...' : 'Start Saving Quotes!'}
-            </button>
-          </form>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-4">
-            <p className="text-2xl font-caveat text-sayso-brown animate-fade-in">
-              Welcome, {kidName}! 🎉
-            </p>
-            <p className="text-sayso-brown">Your first prompt arrives Monday. Redirecting...</p>
-          </div>
-        )}
-
-        {message && <p className="mt-4 text-sayso-red">{message}</p>}
+      <div style={{ display:"flex", gap: 8, marginTop: 12 }}>
+        <button type="button" onClick={addRow}>+ Add another child</button>
+        <button type="button" onClick={submit} disabled={saving}>
+          {saving ? "Saving…" : "Save & Continue"}
+        </button>
       </div>
-    </div>
-  )
+
+      {error && <p style={{ color: "crimson", marginTop: 12 }}>{error}</p>}
+    </main>
+  );
 }
+
+// Prevent build-time prerender failures on env access
+export async function getServerSideProps() { return { props: {} }; }
