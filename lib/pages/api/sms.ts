@@ -2,7 +2,6 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { createClient } from '@supabase/supabase-js'
 import twilio from 'twilio'
 
-// Runtime Supabase (no global import!)
 const getSupabase = () => {
   const url = process.env.SUPABASE_URL
   const key = process.env.SUPABASE_ANON_KEY
