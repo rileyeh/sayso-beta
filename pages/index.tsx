@@ -1,10 +1,4 @@
-import { useRouter } from 'next/router'
-import { useEffect } from 'react'
-
-export default function Home() {
-  const router = useRouter()
-  useEffect(() => {
-    router.replace('/onboard')
-  }, [router])
-  return null
+export default function Index() { return null; }
+export async function getServerSideProps() {
+  return { redirect: { destination: "/onboard", permanent: false } };
 }
